@@ -1,0 +1,6 @@
+client_id,initial_energy_units,training_speed_factor,communication_factor
+client1,100,1.00,1.00
+client2,100,1.10,1.00
+client3,100,0.90,1.15
+client4,100,1.20,0.95
+client5,100,1.00,1.10
