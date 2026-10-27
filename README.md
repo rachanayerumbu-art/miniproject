@@ -1,83 +1,60 @@
+
 # Security-Aware and Energy-Efficient Federated Learning for IoT Intrusion Detection
 
-## Project Folder Structure
+## Project Structure
 
 ```text
 miniproject/
 │
-├── frontend/                    # Your website
-│   ├── index.html               # Main webpage
-│   ├── style.css                # Website design
-│   ├── script.js                # Buttons, charts, interactions
-│   └── assets/                  # Images and icons
+├── frontend/
+│   ├── index.html
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   ├── main.js
+│   │   └── dashboard.js
+│   └── assets/
+│       ├── images/
+│       └── icons/
 │
-├── backend/                     # Python web server
-│   ├── app.py                   # Connects webpage to Python code
-│   └── routes/
-│       └── results.py           # Results endpoints
+├── backend/
+│   ├── security/
+│   │   ├── baseline.py
+│   │   └── inspect_dataset.py
+│   ├── energy_aware_fl.py
+│   ├── federated_learning.py
+│   ├── demo_energy_selection.py
+│   ├── integration_example.py
+│   ├── client_energy_config.csv
+│   ├── energy_config.json
+│   └── test_energy_aware_fl.py
 │
 ├── data/
-│   ├── raw/                     # Original CICIoT2023 CSV files
-│   ├── processed/               # Cleaned BENIGN/DDoS data
-│   └── README.md                # Dataset information
-│
-├── security/                    # Security-related modules
-│
-├── src/                         # Python project source code
-│   ├── data_preprocessing.py    # Dataset preprocessing
-│   ├── federated_learning.py    # Federated learning implementation
-│   └── energy_aware_fl.py       # Energy-aware client selection
-│
-├── configs/
-│   ├── energy_config.json       # Energy configuration
-│   └── client_energy_config.csv # Client energy settings
-│
-├── tests/
-│   └── test_energy_aware_fl.py  # Energy-aware FL tests
+│   └── MERGED_CSV/
 │
 ├── results/
-│   ├── sample_outputs/          # Example experiment outputs
-│   └── figures/                 # Graphs and visualizations
+│   └── sample_outputs/
+│       ├── energy_final_state.json
+│       └── energy_round_log.csv
 │
-├── demo_energy_selection.py     # Energy selection demo
-├── integration_example.py       # Integration example
-├── README.md                    # Project documentation
-├── requirements.txt             # Python dependencies
-└── .gitignore                   # Files excluded from Git
+├── docs/
+├── README.md
+├── requirements.txt
+└── .gitignore
 ```
 
-## Project Overview
+## Project Modules
 
-This project aims to develop a security-aware and energy-efficient Federated Learning (FL) system for IoT intrusion detection using the CICIoT2023 dataset.
-
-The initial detection task focuses on binary classification:
-
-- **BENIGN:** Normal network traffic.
-- **DDoS:** Distributed Denial-of-Service attack traffic.
+- **Frontend:** Web interface built using HTML, CSS, and JavaScript.
+- **Backend:** Python scripts for federated learning, energy-aware client selection, and security experiments.
+- **Data:** CICIoT2023 dataset files used for intrusion detection.
+- **Results:** Experiment outputs, including energy state and training-round logs.
+- **Documentation:** Project reports and technical documentation.
 
 ## Main Objectives
 
-1. Detect DDoS attacks in IoT network traffic.
-2. Train a model using Federated Learning without centralizing all client training data.
-3. Explore security mechanisms to reduce the impact of malicious clients.
-4. Implement energy-aware client selection to reduce estimated training and communication costs.
-5. Evaluate detection performance, energy consumption estimates, and communication overhead.
-
-## Technologies
-
-- Python
-- HTML, CSS, and JavaScript
-- TensorFlow / Keras
-- Pandas and NumPy
-- Scikit-learn
-- Flask (planned backend, if used)
-
-## Dataset
-
-The project uses the CICIoT2023 dataset. Raw data should be stored in `data/raw/`, and cleaned data for the binary classification task should be stored in `data/processed/`.
-
-Large dataset files should not be committed to Git unless appropriate storage and repository limits have been considered.
-
-## Project Status
-
-The folder structure is a starting point. Individual modules, frontend-backend integration, security defenses, and energy-aware experiments will be implemented and tested as the project progresses.
+1. Detect BENIGN and DDoS network traffic.
+2. Train a global model using federated learning and FedAvg.
+3. Explore security-aware defenses against malicious client updates.
+4. Implement energy-aware client selection.
+5. Visualize model performance and energy-related metrics on a web dashboard.
