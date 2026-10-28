@@ -2,129 +2,80 @@
 from pathlib import Path
 import csv
 
-# Dataset folder is inside the current project folder
-DATASET_FOLDER = Path(__file__).parent / "MERGED_CSV"
-
-# Number of sample rows to inspect per CSV
-SAMPLE_ROWS = 3
+DATASET_FOLDER = Path(__file__).parent.parent / "MERGED_CSV"
 
 
 def inspect_csv(file_path):
-    """Print a CSV's columns and a few sample values."""
-    size_mb = file_path.stat().st_size / (1024 * 1024)
-
-    print("\n" + "=" * 75)
+    print("\n" + "=" * 60)
     print(f"File: {file_path.name}")
-    print(f"Size: {size_mb:.2f} MB")
+    print(f"Size: {file_path.stat().st_size / (1024 * 1024):.2f} MB")
 
     try:
         with file_path.open(
-            "r",
-            encoding="utf-8-sig",
-            errors="replace",
-            newline=""
-        ) as file:
-            reader = csv.reader(file)
-
+            "r", encoding="utf-8-sig", errors="replace", newline=""
+        ) as f:
+            reader = csv.reader(f)
             header = next(reader, None)
 
             if not header:
-                print("This file is empty or has no header.")
+                print("Empty file")
                 return
 
-            # Remove accidental spaces around column names
             header = [column.strip() for column in header]
+            print(f"\nColumns ({len(header)}):")
+            print(header)
 
-            print(f"\nTotal columns: {len(header)}")
-            print("\nColumn names:")
-
-            for column in header:
-                print(f"  - {column}")
-
-            # Find columns that might contain class labels
-            possible_labels = [
-                column
-                for column in header
-                if any(
-                    word in column.lower()
-                    for word in ("label", "attack", "class", "category")
-                )
+            label_columns = [
+                column for column in header
+                if any(word in column.lower()
+                       for word in ("label", "attack", "class", "category"))
             ]
 
-            print("\nPossible label columns:")
-            if possible_labels:
-                for column in possible_labels:
-                    print(f"  - {column}")
-            else:
-                print("  No obvious label column found.")
+            print("\nPossible label columns:", label_columns or "None found")
 
-            # Print a few sample values without reading the whole file
-            print(f"\nFirst {SAMPLE_ROWS} data rows:")
-
-            for row_number, row in enumerate(reader, start=1):
-                if row_number > SAMPLE_ROWS:
+            for row_number, row in enumerate(reader):
+                if row_number >= 3:
                     break
+                print(f"\nSample row {row_number + 1}:")
+                print(dict(zip(header, row)))
 
-                print(f"\nRow {row_number}:")
-
-                for index, column in enumerate(header):
-                    value = row[index] if index < len(row) else ""
-                    print(f"  {column}: {value}")
-
-            # Re-open the file to count label values in a small sample
-            if possible_labels:
-                print("\nSample label values:")
+            for column in label_columns:
+                values = set()
 
                 with file_path.open(
-                    "r",
-                    encoding="utf-8-sig",
-                    errors="replace",
-                    newline=""
-                ) as file:
-                    reader = csv.DictReader(file)
+                    "r", encoding="utf-8-sig",
+                    errors="replace", newline=""
+                ) as f:
+                    reader = csv.DictReader(f)
 
-                    for column in possible_labels:
-                        values = []
+                    for row in reader:
+                        value = (row.get(column) or "").strip()
+                        if value:
+                            values.add(value)
+                        if len(values) >= 20:
+                            break
 
-                        for row_number, row in enumerate(reader):
-                            if row_number >= 20:
-                                break
-
-                            value = (row.get(column) or "").strip()
-                            if value and value not in values:
-                                values.append(value)
-
-                        print(f"  {column}: {values[:10]}")
+                print(f"\n{column} sample values:")
+                print(sorted(values))
 
     except Exception as error:
-        print(f"Could not inspect this file: {error}")
+        print("Error:", error)
 
 
 def main():
     if not DATASET_FOLDER.is_dir():
-        print(f"ERROR: Dataset folder not found:\n{DATASET_FOLDER}")
-        print("Make sure MERGED_CSV is inside your miniproject-1 folder.")
+        print(f"Dataset folder not found: {DATASET_FOLDER}")
         return
 
     csv_files = sorted(DATASET_FOLDER.glob("*.csv"))
-
-    print("=" * 75)
-    print("CICIoT2023 DATASET INSPECTION")
-    print(f"Dataset folder: {DATASET_FOLDER}")
     print(f"CSV files found: {len(csv_files)}")
-    print("=" * 75)
 
     if not csv_files:
-        print("No CSV files found in MERGED_CSV.")
+        print("No CSV files found.")
         return
 
     for file_path in csv_files:
         inspect_csv(file_path)
-
-    print("\n" + "=" * 75)
-    print("INSPECTION COMPLETE")
-    print("Send the output to ChatGPT so we can prepare the five-device dataset.")
-    print("=" * 75)
 
 
 if __name__ == "__main__":
