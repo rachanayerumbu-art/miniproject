@@ -21,10 +21,13 @@ miniproject/
 │   ├── security/
 │   │   ├── baseline.py
 │   │   └── inspect_dataset.py
-│   ├── energy_aware_fl.py
+│   │
 │   ├── federated_learning.py
+│   ├── energy_aware_fl.py
+│   ├── energy_client_selector.py
 │   ├── demo_energy_selection.py
 │   ├── integration_example.py
+│   │
 │   ├── client_energy_config.csv
 │   ├── energy_config.json
 │   └── test_energy_aware_fl.py
@@ -38,6 +41,7 @@ miniproject/
 │       └── energy_round_log.csv
 │
 ├── docs/
+│
 ├── README.md
 ├── requirements.txt
 └── .gitignore
