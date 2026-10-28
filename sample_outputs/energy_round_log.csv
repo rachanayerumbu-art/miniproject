@@ -1,9 +1,0 @@
-round,selected_clients,eligible_clients,estimated_costs_units,status,actual_simulated_costs_units,total_spent_this_round_units
-1,client3;client1;client5,5,"{""client1"": 2.38, ""client3"": 2.0316, ""client5"": 2.38}",selected,"{""client1"": 2.38, ""client3"": 2.0316, ""client5"": 2.38}",6.7916
-2,client2;client4;client3,5,"{""client2"": 2.4468, ""client3"": 2.0316, ""client4"": 2.4864}",selected,"{""client2"": 2.4468, ""client3"": 2.0316, ""client4"": 2.4864}",6.9648
-3,client1;client5;client2,5,"{""client1"": 2.38, ""client2"": 2.4468, ""client5"": 2.38}",selected,"{""client1"": 2.38, ""client2"": 2.4468, ""client5"": 2.38}",7.2068
-4,client4;client3;client1,5,"{""client1"": 2.38, ""client3"": 2.0316, ""client4"": 2.4864}",selected,"{""client1"": 2.38, ""client3"": 2.0316, ""client4"": 2.4864}",6.898
-5,client5;client2;client4,5,"{""client2"": 2.4468, ""client4"": 2.4864, ""client5"": 2.38}",selected,"{""client2"": 2.4468, ""client4"": 2.4864, ""client5"": 2.38}",7.3132
-6,client3;client1;client5,5,"{""client1"": 2.38, ""client3"": 2.0316, ""client5"": 2.38}",selected,"{""client1"": 2.38, ""client3"": 2.0316, ""client5"": 2.38}",6.7916
-7,client2;client4;client3,5,"{""client2"": 2.4468, ""client3"": 2.0316, ""client4"": 2.4864}",selected,"{""client2"": 2.4468, ""client3"": 2.0316, ""client4"": 2.4864}",6.9648
-8,client1;client5;client2,5,"{""client1"": 2.38, ""client2"": 2.4468, ""client5"": 2.38}",selected,"{""client1"": 2.38, ""client2"": 2.4468, ""client5"": 2.38}",7.2068
