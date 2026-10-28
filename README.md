@@ -4,6 +4,7 @@
 ## Project Structure
 
 ```text
+
 miniproject/
 │
 ├── frontend/
@@ -27,24 +28,40 @@ miniproject/
 │   ├── energy_client_selector.py
 │   ├── demo_energy_selection.py
 │   ├── integration_example.py
-│   │
-│   ├── client_energy_config.csv
-│   ├── energy_config.json
 │   └── test_energy_aware_fl.py
 │
 ├── data/
-│   └── MERGED_CSV/
+│   ├── MERGED_CSV/
+│   │   ├── client_01.csv
+│   │   ├── client_02.csv
+│   │   └── ... (remaining original CSV files)
+│   │
+│   └── CLIENT_DATA/
+│       ├── iot_client_1.csv
+│       ├── iot_client_2.csv
+│       ├── iot_client_3.csv
+│       ├── iot_client_4.csv
+│       └── iot_client_5.csv
+│
+├── config/
+│   ├── client_energy_config.csv
+│   └── energy_config.json
 │
 ├── results/
 │   └── sample_outputs/
 │       ├── energy_final_state.json
 │       └── energy_round_log.csv
 │
+├── scripts/
+│   ├── distribute_iot_clients.py
+│
+│
 ├── docs/
 │
 ├── README.md
 ├── requirements.txt
 └── .gitignore
+
 ```
 
 ## Project Modules
