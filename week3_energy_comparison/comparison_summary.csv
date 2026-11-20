@@ -1,0 +1,3 @@
+Strategy,Communication_Rounds,Total_Participations,Total_Simulated_Energy_Used,Accuracy,Precision,Recall,F1_Score,False_Positive_Rate
+Standard FedAvg,5,25,75.0,0.999896190179591,1.0,0.9997843665768195,0.9998921716627129,0.0
+Energy-aware FedAvg,5,15,50.7,0.9998442852693865,1.0,0.9996765498652291,0.9998382487733866,0.0

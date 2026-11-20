@@ -1,58 +1,45 @@
+"""Compatibility entry point for the energy selection modules."""
 
-# Energy-aware client selector for Federated Learning
-
-DEVICES = {
-    "client1": {"energy": 100.0, "cost": 4.0},
-    "client2": {"energy": 80.0, "cost": 3.5},
-    "client3": {"energy": 65.0, "cost": 2.8},
-    "client4": {"energy": 55.0, "cost": 2.0},
-    "client5": {"energy": 40.0, "cost": 2.7},
-}
-
-MIN_CLIENTS = 3
-ENERGY_RESERVE = 5.0
-
-
-def select_clients():
-    """Return eligible client IDs, ranked by remaining energy."""
-
-    eligible = [
-        client
-        for client, info in DEVICES.items()
-        if info["energy"] >= info["cost"] + ENERGY_RESERVE
-    ]
-
-    eligible.sort(
-        key=lambda client: DEVICES[client]["energy"],
-        reverse=True
-    )
-
-    return eligible[:MIN_CLIENTS]
+from energy_config import (
+    CLIENT_CONFIG,
+    ENERGY_UNIT,
+    MAX_CLIENTS_PER_ROUND,
+    MINIMUM_ENERGY_THRESHOLD,
+)
+from energy_aware_selection import select_clients
+from energy_simulator import (
+    ClientConfigs,
+    EnergyState,
+    charge_clients,
+    create_energy_state,
+    get_round_cost,
+)
 
 
-def charge_clients(selected_clients):
-    """Deduct estimated energy after a client participates."""
-
-    for client in selected_clients:
-        DEVICES[client]["energy"] -= DEVICES[client]["cost"]
-
-
-if __name__ == "__main__":
+def main() -> None:
+    """Run a small, reproducible demonstration of client selection."""
+    energy_state = create_energy_state()
 
     for round_number in range(1, 6):
-
-        selected = select_clients()
+        selected = select_clients(energy_state)
 
         print(f"\nRound {round_number}")
         print("Selected clients:", selected)
 
-        if len(selected) < MIN_CLIENTS:
-            print("Not enough eligible clients. Stopping.")
+        if not selected:
+            print("No eligible clients remain. Stopping.")
             break
 
-        charge_clients(selected)
-
+        # In federated training, call this only after local training succeeds.
+        energy_used = charge_clients(selected, energy_state)
+        print(
+            f"Simulated energy used: "
+            f"{sum(energy_used.values()):.2f} {ENERGY_UNIT}"
+        )
         print("Remaining energy:")
+        for client_id, remaining in energy_state.items():
+            print(f"  {client_id}: {remaining:.2f}")
 
-        for client, info in DEVICES.items():
-            print(f"{client}: {info['energy']:.2f}")
+
+if __name__ == "__main__":
+    main()
