@@ -1,0 +1,6 @@
+Client,Original_Rows,Valid_Rows,Invalid_Rows_Removed,Has_NonIID_Labels,Training_Feature_Count,Scaler_Fitted_On,Test_Used_For_Fitting,Independent_Test_Transform,All_Scaled_Values_Finite
+Client 1,15870,15868,2,True,37,Five client training CSVs only,False,Passed,True
+Client 2,15699,15699,0,True,37,Five client training CSVs only,False,Passed,True
+Client 3,15412,15412,0,True,37,Five client training CSVs only,False,Passed,True
+Client 4,15125,15124,1,True,37,Five client training CSVs only,False,Passed,True
+Client 5,14954,14954,0,True,37,Five client training CSVs only,False,Passed,True

@@ -1,0 +1,6 @@
+Experiment,Status,Accuracy,Precision,Recall,F1_Score,False_Positive_Rate,Total_Simulated_Energy_Used,Total_Participations,Communication_Rounds,Notes
+Centralized Random Forest,completed,0.9999480950897955,1.0,0.9998921832884097,0.9999460887379373,0.0,,,,Existing centralized baseline; energy and client participation are not applicable.
+Standard FedAvg,completed,0.999896190179591,1.0,0.9997843665768196,0.9998921716627128,0.0,75.0,25,5,Reused the Week 3 run on the held-out test set.
+Energy-aware FedAvg,completed,0.9998442852693864,1.0,0.9996765498652292,0.9998382487733866,0.0,50.7,15,5,Reused the Week 3 run on the held-out test set.
+Federated Learning with Security Defense,unavailable,,,,,,,,,Unavailable: no federated security-defense implementation was present in the inspected project.
+Security Defense with Energy-Aware Selection,unavailable,,,,,,,,,Unavailable: no federated security-defense implementation was present in the inspected project.

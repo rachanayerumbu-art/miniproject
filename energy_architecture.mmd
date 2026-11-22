@@ -1,0 +1,16 @@
+flowchart LR
+    Data["CLIENT_DATA<br/>5 non-IID client datasets"] --> Trainer["Existing federated_learning.py<br/>local training"]
+    Config["energy_config.py<br/>budgets, estimated costs, reserve"] --> Selector["energy_aware_selection.py<br/>eligibility and client selection"]
+    Selector --> Trainer
+    Config --> Simulator["energy_simulator.py<br/>track budgets and deduct estimated costs"]
+    Simulator --> Trainer
+    Trainer --> Updates["Selected local model updates"]
+    Updates --> Aggregation["FedAvg aggregation"]
+    Aggregation --> Global["Updated global model"]
+    Global --> Trainer
+    Trainer --> Test["data/independent_test.csv<br/>held-out evaluation"]
+    Selector --> Log["energy_federated_rounds.csv<br/>participation and simulated energy"]
+    Updates -. "security validation hook; teammate module remains separate" .-> Aggregation
+
+    Note["Current trainer uses scikit-learn SGDClassifier.<br/>The requested neural-network trainer is not present yet."]
+    Trainer --- Note

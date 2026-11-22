@@ -2,163 +2,150 @@
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
-
-# --------------------------------------------------
-# CONFIGURATION
-# --------------------------------------------------
 
 PROJECT_DIR = Path(__file__).resolve().parent
-
-INPUT_DIR = PROJECT_DIR / "MERGED_CSV"
+INPUT_FILE = PROJECT_DIR / "data" / "training_pool.csv"
 OUTPUT_DIR = PROJECT_DIR / "CLIENT_DATA"
 
-NUMBER_OF_CLIENTS = 5
 RANDOM_SEED = 42
+LABEL_COLUMN = "Label"
 
-# --------------------------------------------------
-# STEP 1: LOAD ALL 20 DATASETS
-# --------------------------------------------------
+# Relative distribution: (Normal, DDoS)
+CLIENT_DISTRIBUTION = {
+    1: (90, 10),
+    2: (75, 25),
+    3: (50, 50),
+    4: (25, 75),
+    5: (10, 90),
+}
+
 
 def main():
-    csv_files = sorted(INPUT_DIR.glob("client_*.csv"))
-
-    if len(csv_files) != 20:
+    if not INPUT_FILE.exists():
         raise FileNotFoundError(
-            f"Expected 20 CSV files in {INPUT_DIR}, "
-            f"but found {len(csv_files)}."
+            f"Training file not found: {INPUT_FILE}"
         )
 
-    dataframes = []
+    data = pd.read_csv(INPUT_FILE)
 
-    for file in csv_files:
-        print(f"Loading: {file.name}")
-        df = pd.read_csv(file)
+    if LABEL_COLUMN not in data.columns:
+        raise ValueError(
+            f"Missing '{LABEL_COLUMN}' column."
+        )
 
-        if "Label" not in df.columns:
-            raise ValueError(
-                f"'Label' column missing in {file.name}"
-            )
-
-        dataframes.append(df)
-
-    # Combine all records into one dataset.
-    data = pd.concat(dataframes, ignore_index=True)
-
-    print("\nAll datasets combined.")
-    print("Total records:", len(data))
-    print("Total features including Label:", len(data.columns))
-
-    # --------------------------------------------------
-    # STEP 2: CLEAN AND STANDARDIZE LABELS
-    # --------------------------------------------------
-
-    data["Label"] = (
-        data["Label"].astype(str).str.strip().str.lower()
-    )
+    labels = data[LABEL_COLUMN].astype(str).str.strip().str.lower()
 
     label_mapping = {
         "benign": 0,
         "normal": 0,
+        "0": 0,
         "ddos": 1,
+        "1": 1,
     }
 
-    unknown_labels = set(data["Label"].unique()) - set(label_mapping)
+    mapped_labels = labels.map(label_mapping)
 
-    if unknown_labels:
-        raise ValueError(
-            f"Unexpected labels found: {unknown_labels}. "
-            "Check the dataset before distributing."
+    if mapped_labels.isna().any():
+        unknown = sorted(labels[mapped_labels.isna()].unique())
+        raise ValueError(f"Unknown labels found: {unknown}")
+
+    data[LABEL_COLUMN] = mapped_labels.astype(int)
+
+    normal_data = data[data[LABEL_COLUMN] == 0].sample(
+        frac=1, random_state=RANDOM_SEED
+    ).reset_index(drop=True)
+
+    ddos_data = data[data[LABEL_COLUMN] == 1].sample(
+        frac=1, random_state=RANDOM_SEED + 1
+    ).reset_index(drop=True)
+
+    # Calculate class counts using the available training data.
+    normal_weights = {
+        client: values[0]
+        for client, values in CLIENT_DISTRIBUTION.items()
+    }
+    ddos_weights = {
+        client: values[1]
+        for client, values in CLIENT_DISTRIBUTION.items()
+    }
+
+    def allocate(total, weights):
+        weight_sum = sum(weights.values())
+        exact = {
+            client: total * weight / weight_sum
+            for client, weight in weights.items()
+        }
+        counts = {
+            client: int(value)
+            for client, value in exact.items()
+        }
+
+        remainder = total - sum(counts.values())
+        order = sorted(
+            exact,
+            key=lambda client: exact[client] - counts[client],
+            reverse=True,
         )
 
-    # 0 = Normal traffic; 1 = DDoS traffic
-    data["Label"] = data["Label"].map(label_mapping).astype("int8")
+        for client in order[:remainder]:
+            counts[client] += 1
 
-    print("\nLabel distribution:")
-    print(data["Label"].value_counts().sort_index().rename(
-        index={0: "Normal", 1: "DDoS"}
-    ))
+        return counts
 
-    # --------------------------------------------------
-    # STEP 3: SHUFFLE AND DISTRIBUTE RECORDS
-    # --------------------------------------------------
+    normal_counts = allocate(len(normal_data), normal_weights)
+    ddos_counts = allocate(len(ddos_data), ddos_weights)
 
-    rng = np.random.default_rng(RANDOM_SEED)
-
-    # Create the output directory outside MERGED_CSV.
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Distribute each class separately so that every client
-    # receives approximately the same class proportions.
-    client_parts = [[] for _ in range(NUMBER_OF_CLIENTS)]
+    normal_start = 0
+    ddos_start = 0
+    total_written = 0
 
-    for label in sorted(data["Label"].unique()):
-        class_data = data[data["Label"] == label]
+    for client_id in CLIENT_DISTRIBUTION:
+        normal_count = normal_counts[client_id]
+        ddos_count = ddos_counts[client_id]
 
-        # Shuffle the rows of this class.
-        class_data = class_data.sample(
+        client_normal = normal_data.iloc[
+            normal_start:normal_start + normal_count
+        ]
+        client_ddos = ddos_data.iloc[
+            ddos_start:ddos_start + ddos_count
+        ]
+
+        client_data = pd.concat(
+            [client_normal, client_ddos],
+            ignore_index=True,
+        ).sample(
             frac=1,
-            random_state=RANDOM_SEED
+            random_state=RANDOM_SEED + client_id,
         ).reset_index(drop=True)
 
-        # Split the DataFrame using row positions.
-        split_positions = np.array_split(
-            np.arange(len(class_data)),
-            NUMBER_OF_CLIENTS
-        )
-
-        for client_index, positions in enumerate(split_positions):
-            partition = class_data.iloc[positions].copy()
-            client_parts[client_index].append(partition)
-
-    # --------------------------------------------------
-    # STEP 4: SAVE FIVE CLIENT DATASETS
-    # --------------------------------------------------
-
-    print("\nCreating five IoT client datasets...")
-
-    for i, parts in enumerate(client_parts, start=1):
-        client_data = pd.concat(parts, ignore_index=True)
-
-        # Shuffle normal and DDoS rows together within each client.
-        client_data = client_data.sample(
-            frac=1,
-            random_state=RANDOM_SEED
-        ).reset_index(drop=True)
-
-        output_file = OUTPUT_DIR / f"iot_client_{i}.csv"
+        output_file = OUTPUT_DIR / f"iot_client_{client_id}.csv"
         client_data.to_csv(output_file, index=False)
 
-        normal_count = int((client_data["Label"] == 0).sum())
-        ddos_count = int((client_data["Label"] == 1).sum())
+        actual_normal = int(
+            (client_data[LABEL_COLUMN] == 0).sum()
+        )
+        actual_ddos = int(
+            (client_data[LABEL_COLUMN] == 1).sum()
+        )
 
-        print(f"\nClient {i}")
-        print("  Total records:", len(client_data))
-        print("  Normal records:", normal_count)
-        print("  DDoS records:", ddos_count)
-        print("  Saved to:", output_file)
+        print(f"\nClient {client_id}")
+        print(f"  Normal: {actual_normal}")
+        print(f"  DDoS:   {actual_ddos}")
+        print(f"  Total:  {len(client_data)}")
+        print(f"  Saved:  {output_file}")
 
-    # --------------------------------------------------
-    # STEP 5: VERIFY DISTRIBUTION
-    # --------------------------------------------------
+        normal_start += normal_count
+        ddos_start += ddos_count
+        total_written += len(client_data)
 
-    total_distributed = sum(
-        len(pd.read_csv(OUTPUT_DIR / f"iot_client_{i}.csv"))
-        for i in range(1, NUMBER_OF_CLIENTS + 1)
-    )
-
-    print("\n-----------------------------------")
-    print("DATA DISTRIBUTION COMPLETED")
-    print("-----------------------------------")
-    print("Original combined records:", len(data))
-    print("Distributed records:", total_distributed)
-    print("Number of IoT clients:", NUMBER_OF_CLIENTS)
+    print("\nDistribution completed.")
+    print("Training records:", len(data))
+    print("Records distributed:", total_written)
+    print("Normal records:", len(normal_data))
+    print("DDoS records:", len(ddos_data))
     print("Output folder:", OUTPUT_DIR)
-
-    if total_distributed != len(data):
-        raise RuntimeError("Record count mismatch!")
-
-    print("Verification successful: all records distributed.")
 
 
 if __name__ == "__main__":

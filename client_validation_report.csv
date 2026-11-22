@@ -1,0 +1,6 @@
+Client,File,Exists,Rows,Columns,Columns_Consistent,Dtypes_Consistent,Missing_Values,Infinite_Values,Duplicate_Rows,BENIGN_Count,DDoS_Count,BENIGN_Percentage,DDoS_Percentage,Both_Labels_Present,Cross_Client_Duplicate_Rows,Training_Test_Overlap,Training_Duplicate_Rows,Test_Duplicate_Rows,Train_Test_Files_Checked
+Client 1,iot_client_1.csv,True,15870,38,True,True,4,2,0,14386,1484,90.649,9.351,True,0,0,0,0,True
+Client 2,iot_client_2.csv,True,15699,38,True,True,0,0,0,11989,3710,76.3679,23.6321,True,0,0,0,0,True
+Client 3,iot_client_3.csv,True,15412,38,True,True,0,0,0,7992,7420,51.8557,48.1443,True,0,0,0,0,True
+Client 4,iot_client_4.csv,True,15125,38,True,True,2,1,0,3996,11129,26.4198,73.5802,True,0,0,0,0,True
+Client 5,iot_client_5.csv,True,14954,38,True,True,0,0,0,1599,13355,10.6928,89.3072,True,0,0,0,0,True

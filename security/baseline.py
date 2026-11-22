@@ -1,5 +1,7 @@
 
 from pathlib import Path
+
+import numpy as np
 import pandas as pd
 
 from sklearn.ensemble import RandomForestClassifier
@@ -7,70 +9,99 @@ from sklearn.metrics import (
     accuracy_score,
     classification_report,
     confusion_matrix,
+    precision_score,
+    recall_score,
+    f1_score,
 )
-from sklearn.model_selection import train_test_split
+
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+TRAIN_FILE = PROJECT_DIR / "data" / "training_pool.csv"
+TEST_FILE = PROJECT_DIR / "data" / "independent_test.csv"
+LABEL_COLUMN = "Label"
+RANDOM_SEED = 42
+
+
+def load_data(file_path):
+    if not file_path.exists():
+        raise FileNotFoundError(f"Dataset not found: {file_path}")
+
+    df = pd.read_csv(file_path)
+
+    if LABEL_COLUMN not in df.columns:
+        raise ValueError(f"Missing '{LABEL_COLUMN}' in {file_path.name}")
+
+    y = pd.to_numeric(df[LABEL_COLUMN], errors="coerce")
+
+    if y.isna().any() or not y.isin([0, 1]).all():
+        raise ValueError(f"Invalid labels in {file_path.name}")
+
+    X = df.drop(columns=[LABEL_COLUMN]).apply(
+        pd.to_numeric, errors="coerce"
+    )
+    X = X.replace([np.inf, -np.inf], np.nan)
+
+    valid_rows = X.notna().all(axis=1)
+    X = X.loc[valid_rows].reset_index(drop=True)
+    y = y.loc[valid_rows].astype(int).reset_index(drop=True)
+
+    if X.empty:
+        raise ValueError(f"No valid feature rows in {file_path.name}")
+
+    return X, y
 
 
 def main():
-    # Update this path after Rachana confirms the prepared CSV filename.
-    data_path = Path("data/prepared_dataset.csv")
+    X_train, y_train = load_data(TRAIN_FILE)
+    X_test, y_test = load_data(TEST_FILE)
 
-    if not data_path.exists():
-        print(f"Dataset not found: {data_path.resolve()}")
-        print("Ask Rachana for the prepared CSV filename and location.")
-        return
-
-    df = pd.read_csv(data_path)
-
-    # Change 'label' if Rachana's label column has a different name.
-    label_column = "label"
-
-    if label_column not in df.columns:
-        print("Label column not found.")
-        print("Available columns:", df.columns.tolist())
-        return
-
-    df = df.dropna(subset=[label_column])
-    X = df.drop(columns=[label_column])
-    y = df[label_column]
-
-    # This starter assumes all feature columns are numeric.
-    X = X.apply(pd.to_numeric, errors="coerce")
-    X = X.replace([float("inf"), float("-inf")], float("nan"))
-
-    # Remove rows with invalid feature values.
-    valid_rows = X.notna().all(axis=1)
-    X = X.loc[valid_rows]
-    y = y.loc[valid_rows]
-
-    if y.nunique() < 2:
-        print("The dataset must contain at least two classes.")
-        return
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.2,
-        random_state=42,
-        stratify=y,
-    )
+    if list(X_train.columns) != list(X_test.columns):
+        raise ValueError(
+            "Training and test feature columns do not match."
+        )
 
     model = RandomForestClassifier(
         n_estimators=100,
-        random_state=42,
+        random_state=RANDOM_SEED,
         n_jobs=-1,
         class_weight="balanced",
     )
+
+    print("Training centralized Random Forest model...")
     model.fit(X_train, y_train)
 
     predictions = model.predict(X_test)
 
-    print("Baseline model results")
-    print("Accuracy:", accuracy_score(y_test, predictions))
-    print("\nClassification report:")
-    print(classification_report(y_test, predictions, zero_division=0))
-    print("\nConfusion matrix:")
-    print(confusion_matrix(y_test, predictions))
+    print("\nCentralized Baseline Results")
+    print("----------------------------")
+    print("Training records:", len(X_train))
+    print("Independent test records:", len(X_test))
+    print(f"Accuracy:  {accuracy_score(y_test, predictions):.4f}")
+    print(
+        f"Precision: "
+        f"{precision_score(y_test, predictions, zero_division=0):.4f}"
+    )
+    print(
+        f"Recall:    "
+        f"{recall_score(y_test, predictions, zero_division=0):.4f}"
+    )
+    print(
+        f"F1-score:  "
+        f"{f1_score(y_test, predictions, zero_division=0):.4f}"
+    )
+
+    print("\nClassification Report:")
+    print(
+        classification_report(
+            y_test,
+            predictions,
+            labels=[0, 1],
+            target_names=["Normal", "DDoS"],
+            zero_division=0,
+        )
+    )
+
+    print("Confusion Matrix (actual rows, predicted columns):")
+    print(confusion_matrix(y_test, predictions, labels=[0, 1]))
 
 
 if __name__ == "__main__":
