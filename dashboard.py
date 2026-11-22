@@ -5,11 +5,15 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from security.request_handler import handle_request
+from security.rate_limiter import reset_rate_limiter
+
 
 PROJECT_DIR = Path(__file__).resolve().parent
 WEEK3_RESULTS_DIR = PROJECT_DIR / "week3_energy_comparison"
 RESULTS_DIR = PROJECT_DIR / "week4_results"
 GRAPH_DIR = RESULTS_DIR / "presentation_graphs"
+TEST_FILE = PROJECT_DIR / "data" / "independent_test.csv"
 
 st.set_page_config(
     page_title="IoT Federated Learning Results",
@@ -134,6 +138,132 @@ with right:
         )
     )
     st.dataframe(final_energy, width="stretch")
+
+
+@st.cache_resource
+def run_request_security_demo(test_path):
+    """Run one supplied-record security demonstration per cached process."""
+    test_data = pd.read_csv(test_path)
+
+    if "Label" not in test_data.columns:
+        raise ValueError("Independent test data has no Label column.")
+
+    normal_rows = test_data[test_data["Label"] == 0]
+    ddos_rows = test_data[test_data["Label"] == 1]
+    if normal_rows.empty or ddos_rows.empty:
+        raise ValueError("Independent test data needs normal and DDoS records.")
+
+    normal_record = normal_rows.iloc[0].drop(labels=["Label"]).to_dict()
+    ddos_record = ddos_rows.iloc[0].drop(labels=["Label"]).to_dict()
+    invalid_record = normal_record.copy()
+    invalid_record.pop(next(iter(invalid_record)))
+
+    reset_rate_limiter()
+    fixed_time = lambda: 1000.0
+
+    normal_result = handle_request(
+        normal_record,
+        "dashboard-normal-device",
+        time_source=fixed_time,
+    )
+    ddos_result = handle_request(
+        ddos_record,
+        "dashboard-ddos-device",
+        time_source=fixed_time,
+    )
+    repeated_results = [
+        handle_request(
+            normal_record,
+            "dashboard-repeated-device",
+            time_source=fixed_time,
+        )
+        for _ in range(11)
+    ]
+    invalid_result = handle_request(
+        invalid_record,
+        "dashboard-invalid-device",
+        time_source=fixed_time,
+    )
+
+    results = [
+        normal_result,
+        ddos_result,
+        *repeated_results,
+        invalid_result,
+    ]
+    counts = {
+        status: sum(
+            result["status"] == status
+            for result in results
+        )
+        for status in ("allowed", "blocked", "limited", "invalid")
+    }
+
+    return normal_result, ddos_result, repeated_results, invalid_result, counts
+
+
+st.subheader("IoT Request Security")
+st.caption(
+    "Supplied IoT feature-record demonstration using the existing "
+    "classifier and 60-second rate limiter."
+)
+
+if not TEST_FILE.exists():
+    st.warning(
+        "IoT request demonstration unavailable: "
+        "data/independent_test.csv was not found."
+    )
+else:
+    try:
+        (
+            normal_result,
+            ddos_result,
+            repeated_results,
+            invalid_result,
+            request_counts,
+        ) = run_request_security_demo(str(TEST_FILE))
+    except (OSError, ValueError, pd.errors.ParserError) as error:
+        st.warning(
+            "IoT request demonstration unavailable: "
+            f"{error}"
+        )
+    else:
+        first_demo, ddos_demo, repeated_demo = st.columns(3)
+        first_demo.metric(
+            "Normal request",
+            normal_result["status"].title(),
+        )
+        ddos_demo.metric(
+            "DDoS request",
+            ddos_result["status"].title(),
+        )
+
+        allowed_repeated = sum(
+            result["status"] == "allowed"
+            for result in repeated_results
+        )
+        repeated_limited = sum(
+            result["status"] == "limited"
+            for result in repeated_results
+        )
+        repeated_demo.metric(
+            "Repeated normal requests",
+            "Rate limited" if repeated_limited else "Allowed",
+            f"{allowed_repeated} allowed, {repeated_limited} limited",
+        )
+
+        count_columns = st.columns(4)
+        count_columns[0].metric("Allowed", request_counts["allowed"])
+        count_columns[1].metric("Blocked", request_counts["blocked"])
+        count_columns[2].metric("Limited", request_counts["limited"])
+        count_columns[3].metric("Invalid", request_counts["invalid"])
+
+        with st.expander("Request reasons"):
+            st.write(normal_result["reason"])
+            st.write(ddos_result["reason"])
+            st.write(repeated_results[-1]["reason"])
+            st.write(invalid_result["reason"])
+
 
 st.subheader("Presentation graphs")
 graph_files = [

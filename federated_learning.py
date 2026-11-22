@@ -23,6 +23,7 @@ from energy_simulator import (
     charge_clients,
     create_energy_state,
 )
+from security.defense import defend_update
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -128,6 +129,38 @@ def average_client_models(client_models, client_sizes):
     ) / total_size
 
     return coefficients, intercepts
+
+
+def build_model_update(global_model, local_model):
+    """Return the local model parameter change relative to the global model."""
+    coefficient_delta = (
+        local_model.coef_.copy() - global_model.coef_.copy()
+    )
+    intercept_delta = (
+        local_model.intercept_.copy() - global_model.intercept_.copy()
+    )
+    return np.concatenate(
+        (
+            coefficient_delta.ravel(),
+            intercept_delta.ravel(),
+        )
+    )
+
+
+def apply_model_update(global_model, defended_update):
+    """Apply a defended parameter change without changing the source update."""
+    coefficient_size = global_model.coef_.size
+    coefficient_delta = defended_update[:coefficient_size].reshape(
+        global_model.coef_.shape
+    )
+    intercept_delta = defended_update[coefficient_size:].reshape(
+        global_model.intercept_.shape
+    )
+
+    return (
+        global_model.coef_.copy() + coefficient_delta,
+        global_model.intercept_.copy() + intercept_delta,
+    )
 
 
 def prepare_data():
@@ -318,6 +351,7 @@ def run_federated_experiment(
                 )
             break
 
+        round_updates = []
         for client_id in selected_client_ids:
             X_client, y_client = client_data[client_id - 1]
             local_model = SGDClassifier(
@@ -339,8 +373,13 @@ def run_federated_experiment(
                     y_client[indices],
                 )
 
-            client_models.append(local_model)
-            client_sizes.append(len(X_client))
+            round_updates.append({
+                "client_id": f"client{client_id}",
+                "client_number": client_id,
+                "dataset_size": len(X_client),
+                "model": local_model,
+                "update": build_model_update(global_model, local_model),
+            })
 
             if track_energy:
                 energy_used.update(
@@ -361,9 +400,68 @@ def run_federated_experiment(
                 )
             )
 
-        global_model.coef_, global_model.intercept_ = (
-            average_client_models(client_models, client_sizes)
+        peer_update_arrays = [
+            entry["update"].copy()
+            for entry in round_updates
+        ]
+        peer_norms = [
+            float(np.linalg.norm(update))
+            for update in peer_update_arrays
+        ]
+        median_peer_norm = (
+            float(np.median(peer_norms))
+            if peer_norms
+            else 1.0
         )
+        clipping_limit = max(1.0, median_peer_norm * 1.5)
+
+        for entry_index, entry in enumerate(round_updates):
+            result = defend_update(
+                entry["update"],
+                client_id=entry["client_id"],
+                round_number=round_no,
+                peer_updates=[
+                    peer_entry["update"].copy()
+                    for peer_index, peer_entry in enumerate(round_updates)
+                    if peer_index != entry_index
+                ],
+                reference_update=None,
+                max_norm=clipping_limit,
+                suspicious_z_score=10000.0,
+                reject_z_score=10000.0,
+            )
+
+            print(
+                f"  Security {entry['client_id']}: "
+                f"{result['decision']} - {result['reason']}"
+            )
+
+            if result["decision"] == "rejected":
+                continue
+
+            defended_update = result["defended_update"]
+            defended_coefficients, defended_intercept = apply_model_update(
+                global_model,
+                defended_update,
+            )
+            defended_model = SGDClassifier(
+                loss="log_loss",
+                random_state=RANDOM_SEED + entry["client_number"],
+            )
+            defended_model.coef_ = defended_coefficients.copy()
+            defended_model.intercept_ = defended_intercept.copy()
+            defended_model.classes_ = global_model.classes_.copy()
+            defended_model.n_features_in_ = global_model.n_features_in_
+
+            client_models.append(defended_model)
+            client_sizes.append(entry["dataset_size"])
+
+        if client_models:
+            global_model.coef_, global_model.intercept_ = (
+                average_client_models(client_models, client_sizes)
+            )
+        else:
+            print("  Security: no accepted or reduced updates; global model unchanged.")
         predictions = global_model.predict(X_test)
         metrics = calculate_metrics(y_test, predictions)
         round_metrics.append(
